@@ -1,6 +1,6 @@
 # Solar-Powered Biometric Attendance Management System
 
-Personal project (not a dissertation deliverable) building a full
+Building a full
 biometric attendance system for Sierra Leone educational institutions:
 ESP32 + AS608/R307 fingerprint sensor (solar-powered in production),
 Flask REST API, MySQL, and a role-based web app (Admin / Lecturer / Student).
