@@ -19,6 +19,7 @@ def create_app(config_class=Config):
     from app.routes.course_routes import course_bp
     from app.routes.session_routes import session_bp
     from app.routes.user_routes import user_bp
+    from app.routes.enrollment_routes import enrollment_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(student_bp)
@@ -27,6 +28,7 @@ def create_app(config_class=Config):
     app.register_blueprint(course_bp)
     app.register_blueprint(session_bp)
     app.register_blueprint(user_bp)
+    app.register_blueprint(enrollment_bp)
 
     @app.get("/api/health")
     def health():
