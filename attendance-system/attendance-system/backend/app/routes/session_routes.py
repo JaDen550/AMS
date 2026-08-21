@@ -49,7 +49,7 @@ def start_session():
         s.is_active = False
         s.ended_at = datetime.utcnow()
 
-    lecturer_id = course.lecturer_id if claims.get("role") == "lecturer" else current_user_id
+   lecturer_id = course.lecturer_id if course.lecturer_id else current_user_id
     session = AttendanceSession(
         course_id=course_id,
         device_id=device_id,
