@@ -16,13 +16,12 @@ def start_session():
     """
     Starts an attendance session for a course on a specific device.
     While this session is active, any fingerprint scan on that device
-    is understood to belong to this course — that's what lets the
-    system record module/module code/lecturer alongside each scan.
+    is understood to belong to this course.
 
-    A lecturer can only start a session for a course they're assigned
-    to, unless they're an admin. Starting a new session on a device
-    automatically ends any other session already active on that same
-    device — a device can only belong to one live class at a time.
+    The course's own assigned lecturer is always credited on the
+    session, whether an admin or the lecturer themselves starts it.
+    Falls back to whoever is logged in only if the course has no
+    lecturer assigned yet.
     """
     data = request.get_json(silent=True) or {}
     course_id = data.get("course_id")
@@ -49,8 +48,8 @@ def start_session():
         s.is_active = False
         s.ended_at = datetime.utcnow()
 
-   lecturer_id = course.lecturer_id if course.lecturer_id else current_user_id
-   session = AttendanceSession(
+    lecturer_id = course.lecturer_id if course.lecturer_id else current_user_id
+    session = AttendanceSession(
         course_id=course_id,
         device_id=device_id,
         lecturer_id=lecturer_id,
