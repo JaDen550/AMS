@@ -78,12 +78,66 @@ class Device(db.Model):
         }
 
 
+class Course(db.Model):
+    __tablename__ = "courses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    module_code = db.Column(db.String(20), unique=True, nullable=False)
+    module_name = db.Column(db.String(150), nullable=False)
+    lecturer_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    lecturer = db.relationship("User", foreign_keys=[lecturer_id])
+    sessions = db.relationship("AttendanceSession", backref="course", lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "module_code": self.module_code,
+            "module_name": self.module_name,
+            "lecturer_id": self.lecturer_id,
+            "lecturer_name": self.lecturer.full_name if self.lecturer else None,
+        }
+
+
+class AttendanceSession(db.Model):
+    __tablename__ = "attendance_sessions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    lecturer_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    lecturer = db.relationship("User", foreign_keys=[lecturer_id])
+    device = db.relationship("Device", foreign_keys=[device_id])
+    attendance_records = db.relationship("AttendanceRecord", backref="session", lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "course_id": self.course_id,
+            "module_code": self.course.module_code if self.course else None,
+            "module_name": self.course.module_name if self.course else None,
+            "device_id": self.device_id,
+            "lecturer_id": self.lecturer_id,
+            "lecturer_name": self.lecturer.full_name if self.lecturer else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
+            "is_active": self.is_active,
+        }
+
+
 class AttendanceRecord(db.Model):
     __tablename__ = "attendance_records"
 
     id = db.Column(db.BigInteger, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True)
     fingerprint_id = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Enum("present", "late", name="attendance_status"),
                         nullable=False, default="present")
@@ -100,6 +154,10 @@ class AttendanceRecord(db.Model):
             "student_id": self.student_id,
             "student_name": self.student.full_name if self.student else None,
             "device_id": self.device_id,
+            "session_id": self.session_id,
+            "module_code": self.session.course.module_code if self.session and self.session.course else None,
+            "module_name": self.session.course.module_name if self.session and self.session.course else None,
+            "lecturer_name": self.session.lecturer.full_name if self.session and self.session.lecturer else None,
             "fingerprint_id": self.fingerprint_id,
             "status": self.status,
             "recorded_at": self.recorded_at.isoformat(),
