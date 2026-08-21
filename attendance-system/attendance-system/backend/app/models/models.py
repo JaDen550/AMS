@@ -101,6 +101,29 @@ class Course(db.Model):
         }
 
 
+class CourseEnrollment(db.Model):
+    __tablename__ = "course_enrollments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    student = db.relationship("Student", foreign_keys=[student_id])
+    course = db.relationship("Course", foreign_keys=[course_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "student_name": self.student.full_name if self.student else None,
+            "student_number": self.student.student_number if self.student else None,
+            "course_id": self.course_id,
+            "module_code": self.course.module_code if self.course else None,
+            "enrolled_at": self.enrolled_at.isoformat() if self.enrolled_at else None,
+        }
+
+
 class AttendanceSession(db.Model):
     __tablename__ = "attendance_sessions"
 
@@ -138,15 +161,19 @@ class AttendanceRecord(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
     session_id = db.Column(db.Integer, db.ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True)
-    fingerprint_id = db.Column(db.Integer, nullable=False)
+    fingerprint_id = db.Column(db.Integer, nullable=True)
     status = db.Column(db.Enum("present", "late", name="attendance_status"),
                         nullable=False, default="present")
+    is_manual = db.Column(db.Boolean, nullable=False, default=False)
+    marked_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     recorded_at = db.Column(db.DateTime, nullable=False)
     received_at = db.Column(db.DateTime, default=datetime.utcnow)
     synced_offline = db.Column(db.Boolean, nullable=False, default=False)
     battery_percentage = db.Column(db.SmallInteger, nullable=True)
     network_status = db.Column(db.Enum("online", "offline_queued", name="network_status"),
                                  nullable=False, default="online")
+
+    marked_by_user = db.relationship("User", foreign_keys=[marked_by])
 
     def to_dict(self):
         return {
@@ -160,6 +187,8 @@ class AttendanceRecord(db.Model):
             "lecturer_name": self.session.lecturer.full_name if self.session and self.session.lecturer else None,
             "fingerprint_id": self.fingerprint_id,
             "status": self.status,
+            "is_manual": self.is_manual,
+            "marked_by_name": self.marked_by_user.full_name if self.marked_by_user else None,
             "recorded_at": self.recorded_at.isoformat(),
             "received_at": self.received_at.isoformat() if self.received_at else None,
             "synced_offline": self.synced_offline,
