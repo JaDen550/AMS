@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
 from app.extensions import db
-from app.models import AttendanceRecord, Student
+from app.models import AttendanceRecord, Student, AttendanceSession
 from app.utils.auth import role_required, device_key_required
 
 attendance_bp = Blueprint("attendance", __name__, url_prefix="/api/attendance")
@@ -16,10 +16,17 @@ def submit_attendance():
     Called BY the ESP32 firmware — once for each real-time match, and
     again (with synced_offline=True) for each record that was queued
     locally while the device had no network connection.
+
+    Automatically looks up whichever attendance session is currently
+    active on this device (if any) and attaches it to the record —
+    that's what carries module/module code/lecturer through to the
+    final attendance record without the firmware needing to know
+    anything about courses at all. If no session is active, the
+    record still saves — session_id is simply null.
     """
     data = request.get_json(silent=True) or {}
     fingerprint_id = data.get("fingerprint_id")
-    recorded_at_raw = data.get("recorded_at")  # ISO8601 string from device clock
+    recorded_at_raw = data.get("recorded_at")
 
     if fingerprint_id is None or not recorded_at_raw:
         return jsonify({"error": "fingerprint_id and recorded_at are required"}), 400
@@ -33,9 +40,14 @@ def submit_attendance():
     except ValueError:
         return jsonify({"error": "recorded_at must be ISO8601"}), 400
 
+    active_session = AttendanceSession.query.filter_by(
+        device_id=request.device.id, is_active=True
+    ).first()
+
     record = AttendanceRecord(
         student_id=student.id,
         device_id=request.device.id,
+        session_id=active_session.id if active_session else None,
         fingerprint_id=fingerprint_id,
         status=data.get("status", "present"),
         recorded_at=recorded_at,
